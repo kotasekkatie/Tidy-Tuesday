@@ -1,0 +1,159 @@
+---
+title: "Tidy Tuesday - Global Plastics Recovered"
+author: "Katie Kotasek"
+date: "1/27/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# required packages
+library(tidyverse)
+library(lubridate)
+library(mmbtools)
+library(tidytuesdayR)
+library(waffle)
+library(openxlsx)
+```
+
+```{r echo=FALSE}
+# read in data
+plastics <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-01-26/plastics.csv') %>%
+  filter(year == 2020)
+continents <- read.xlsx("Countries.xlsx")
+plastics_joined <- plastics %>%
+  inner_join(continents, by = "country")
+
+# replace all NA values with zero (0)
+plastics_joined <- plastics_joined %>%
+  mutate_at(vars(hdpe, ldpe, o, pet, pp, ps, pvc), replace_na, 0) %>%
+  select(-c(year, parent_company, empty, grand_total, num_events, volunteers))
+```
+
+```{r echo=FALSE}
+# count totals by continent
+plasticsTotal <- plastics_joined %>%
+  group_by(continent) %>%
+  summarise(totalHDPE = sum(hdpe),
+            totalLDPE = sum(ldpe),
+            totalO = sum(o),
+            totalPET = sum(pet),
+            totalPP = sum(pp),
+            totalPS = sum(ps),
+            totalPVC = sum(pvc)
+            )
+# convert to long format
+plasticsLong <- plasticsTotal %>%
+  pivot_longer(c(2:8), names_to = "category", values_to = "value") %>%
+  ungroup()
+```
+
+```{r vectors, echo=FALSE}
+# Africa
+unitsAF <- c("High density polyethylene" = 8718, 
+             "Low density polyethylene" = 16460,
+             "Other" = 26764,
+             "Polyester" = 54696, 
+             "Polypropylene" = 3292, 
+             "Polystyrene" = 2158,
+             "PVC" = 73)
+# Asia
+unitsAS <- c("High density polyethylene" = 2977, 
+             "Low density polyethylene" = 12513,
+             "Other" = 27447,
+             "Polyester" = 12542, 
+             "Polypropylene" = 47374, 
+             "Polystyrene" = 2834,
+             "PVC" = 1558)
+# Australia
+unitsAL <- c("High density polyethylene" = 33, 
+             "Low density polyethylene" = 222,
+             "Other" = 898,
+             "Polyester" = 141, 
+             "Polypropylene" = 361, 
+             "Polystyrene" = 3,
+             "PVC" = 6)
+# Europe
+unitsEU <- c("High density polyethylene" = 3627, 
+             "Low density polyethylene" = 4914,
+             "Other" = 68776,
+             "Polyester" = 5436, 
+             "Polypropylene" = 4450, 
+             "Polystyrene" = 2747,
+             "PVC" = 232)
+# North America
+unitsNA <- c("High density polyethylene" = 907, 
+             "Low density polyethylene" = 1904,
+             "Other" = 5400,
+             "Polyester" = 4266, 
+             "Polypropylene" = 4643, 
+             "Polystyrene" = 1367,
+             "PVC" = 222)
+# South America
+unitsSA <- c("High density polyethylene" = 840, 
+             "Low density polyethylene" = 1449,
+             "Other" = 3160,
+             "Polyester" = 4823, 
+             "Polypropylene" = 1600, 
+             "Polystyrene" = 354,
+             "PVC" = 124)
+```
+
+```{r waffle charts, echo=FALSE}
+# waffle chart for africa
+waffle(unitsAF/25, rows=40, size=0, 
+       colors=c("#003685", "#78BE21", "#008EAA", "#8D3F2B", "#0D5257",
+                "#5D295F", "#FFC845"),
+       legend_pos = "right",
+       #title="Total Amount of Plastic Recovered in 2020\nContinent: Africa", 
+       xlab="1 square == 25 pieces")
+# waffle chart for asia
+waffle(unitsAS/25, rows=40, size=0, 
+       colors=c("#003685", "#78BE21", "#008EAA", "#8D3F2B", "#0D5257",
+                "#5D295F", "#FFC845"),
+       legend_pos = "right",
+       #title="Total Amount of Plastic Recovered in 2020\nContinent: Asia", 
+       xlab="1 square == 25 pieces")
+# waffle chart for australia
+waffle(unitsAL/25, rows=8, size=0, 
+       colors=c("#003685", "#78BE21", "#008EAA", "#8D3F2B", "#0D5257",
+                "#5D295F", "#FFC845"),
+       legend_pos = "right",
+       #title="Total Amount of Plastic Recovered in 2020\nContinent: Australia", 
+       xlab="1 square == 25 pieces")
+# waffle chart for europe
+waffle(unitsEU/25, rows=40, size=0, 
+       colors=c("#003685", "#78BE21", "#008EAA", "#8D3F2B", "#0D5257",
+                "#5D295F", "#FFC845"),
+       legend_pos = "right",
+       #title="Total Amount of Plastic Recovered in 2020\nContinent: Europe", 
+       xlab="1 square == 25 pieces")
+# waffle chart for north america
+waffle(unitsNA/25, rows=40, size=0, 
+       colors=c("#003685", "#78BE21", "#008EAA", "#8D3F2B", "#0D5257",
+                "#5D295F", "#FFC845"),
+       legend_pos = "right",
+       #title="Total Amount of Plastic Recovered in 2020\nContinent: North America", 
+       xlab="1 square == 25 pieces")
+# waffle chart for south america
+waffle(unitsSA/25, rows=40, size=0, 
+       colors=c("#003685", "#78BE21", "#008EAA", "#8D3F2B", "#0D5257",
+                "#5D295F", "#FFC845"),
+       legend_pos = "right",
+       #title="Total Amount of Plastic Recovered in 2020\nContinent: South America", 
+       xlab="1 square == 25 pieces")
+```
+
+```{r echo=FALSE}
+# create waffle data set
+#plasticsWaffle <- plasticsLong %>%
+#  group_by(category) %>%
+#  summarise(Total = sum(value))
+# waffle chart
+#ggplot(plasticsWaffle, aes(category, Total, fill = category)) +
+#  geom_waffle() +
+#  theme_waffle()
+  #scale_fill_waffle() +
+  #labs(title = "Total amount of plastic recovered in 2020 by type",
+  #     subtitle = "For Canada, Mexico and USA",
+  #     xlab = "1 square == 10 pieces")
+```
