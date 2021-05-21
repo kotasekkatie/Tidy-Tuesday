@@ -1,0 +1,118 @@
+---
+title: "Tidy Tuesday - Water Points in Africa"
+author: "Katie Kotasek"
+date: "5/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# required packages
+library(tidyverse)
+library(mmbtools)
+library(lubridate)
+library(leaflet)
+library(leaflet.minicharts)
+library(htmltools)
+
+mmb_load_fonts()
+
+options(scipen = 999)
+```
+
+```{r read data}
+# read in data and keep only relevant columns
+water <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-05-04/water.csv') %>%
+  select(-c(row_id, status_id, installer, pay))
+# find distinct water sources and water techs
+countSource <- water %>%
+  distinct(water_source) %>% 
+  arrange(water_source)
+countTech <- water %>% 
+  distinct(water_tech) %>% 
+  arrange(water_tech)
+# filter out empty values
+water <- water %>%
+  filter (!is.na(water_source) & !is.na(water_tech) & !is.na(facility_type)) %>%
+  mutate(water_source = case_when(water_source %in% c("Protected Shallow Well", "Protected Spring") ~ "Protected Spring/Well",
+                                  water_source %in% c("Undefined Shallow Well", "Undefined Spring") ~ "Undefined Spring/Well",
+                                  water_source %in% c("Unprotected Shallow Well", "Unprotected Spring") ~ "Unprotected Spring/Well",
+                                  TRUE ~ water_source
+                                  ),
+         water_tech = case_when(water_tech %in% c("Hand Pump - Afridev", "Hand Pump - Consallen", "Hand Pump - India Mark",
+                                                  "Hand Pump - Indus", "Hand Pump - Inkar", "Hand Pump - Kardia",
+                                                  "Hand Pump - Nira", "Hand Pump - PB Mark II", "Hand Pump - SWN 80",
+                                                  "Hand Pump - Vergnet") ~ "Hand Pump",
+                                water_tech %in% c("Mechanized Pump - Diesel", "Mechanized Pump - Solar") ~ "Mechanized Pump",
+                                TRUE ~ water_tech
+                              )
+        )
+# create a vector of countries not in Africa
+countries <- c("Peru", "Timor-Leste")
+# filter out those countries
+water <- water %>%
+  filter(!(country_name %in% countries) & !is.na(install_year) & lat_deg < 56) %>%
+  select(-status)
+```
+
+```{r}
+countYear <- borehole %>%
+  group_by(install_year) %>%
+  count(count = n()) %>%
+  arrange(desc(n))
+# separate water sources into their own data set
+borehole <- water %>%
+  filter(water_source == "Borehole" & !is.na(country_name) & install_year == 2017) %>%
+  group_by(country_name, water_tech) %>%
+  mutate(count = n()) %>%
+  ungroup()
+```
+
+```{r borehole map}
+tilesURL <- "http://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
+# define custom label
+boreholeContent <- paste(borehole$water_tech)
+# define color scheme for water_tech variable
+pal <- colorFactor(palette = c("#003685", "#78BE21"),
+                   domain = borehole$water_tech)
+# define HTML for title
+tag.map.title <- tags$style(HTML("
+  .leaflet-control.map-title { 
+    transform: translate(-50%,20%);
+    position: fixed !important;
+    left: 50%;
+    text-align: center;
+    padding-left: 10px; 
+    padding-right: 10px; 
+    background: rgba(255,255,255,0.75);
+    font-weight: bold;
+    font-size: 24px;
+  }")
+  )
+# create title object
+title <- tags$div(tag.map.title, 
+                  HTML("Borehole Water Points"))
+# define HTML for caption
+tag.map.caption <- tags$style(HTML("
+   { 
+    transform: translate(-50%,20%);
+    position: fixed !important;
+    left: 75%;
+    text-align: left;
+    padding-left: 10px; 
+    padding-right: 10px;
+    font-size: 10px;
+  }")
+  )
+# create caption object
+caption <- tags$div(tag.map.caption, 
+                  HTML("Source: https://data.waterpointdata.org/dataset/Water-Point-Data-Exchange-WPDx-Basic-/jfkt-jmqa"))
+# create map
+borehole %>%
+  leaflet() %>%
+  addTiles(tilesURL) %>%
+  addCircles(lng = ~lon_deg, lat = ~lat_deg, color = ~pal(water_tech), opacity = 1) %>%
+  addLegend("topright", pal = pal, values = ~water_tech, title = "Water Tech Type (2017)",
+            opacity = 1) %>%
+  addControl(title, position = "topleft", className="map-title") %>%
+  addControl(caption, position = "bottomleft")
+```
