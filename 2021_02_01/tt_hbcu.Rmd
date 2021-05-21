@@ -1,0 +1,162 @@
+---
+title: "Tidy Tuesday - HBCU"
+author: "Katie Kotasek"
+date: "2/2/2021"
+output: html_document
+---
+```{r echo=FALSE}
+options(scipen = 999)
+```
+
+```{r setup, include=FALSE}
+# required packages
+library(tidyverse)
+library(mmbtools)
+library(gganimate)
+library(transformr)
+library(gifski)
+library(ggdark)
+
+mmb_load_fonts()
+```
+
+```{r read data}
+# read in data
+hbcu_all <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-02/hbcu_all.csv")
+```
+
+```{r create sets}
+hbcu_all <- hbcu_all %>%
+  filter(Year >= 1990) %>%
+  rename(`Total public` = `Total - Public`,
+         `4-year public` = `4-year - Public`,
+         `2-year public` = `2-year - Public`,
+         `Total private` = `Total - Private`,
+         `4-year private` = `4-year - Private`,
+         `2-year private` = `2-year - Private`) %>%
+  mutate(Year = as.integer(Year))
+
+enrollment <- hbcu_all %>%
+  select(Year, `Total enrollment`, Males, Females, `4-year`, `2-year`) %>%
+  pivot_longer(2:6, names_to = "Category", values_to = "Value")
+
+fourYear <- hbcu_all %>%
+  select(Year, `Total public`, `Total private`, `4-year public`, `4-year private`) %>%
+  pivot_longer(2:5, names_to = "Category", values_to = "Value")
+
+twoYear <- hbcu_all %>%
+  select(Year, `Total public`, `Total private`, `2-year public`, `2-year private`) %>%
+  pivot_longer(2:5, names_to = "Category", values_to = "Value")
+```
+
+```{r total enrollment}
+# total enrollment
+anim_enroll <- enrollment %>%
+  ggplot(aes(x = Year,
+             y = Value,
+             color = Category)) +
+  geom_line() +
+  geom_text(aes(label = Category)) +
+  labs(title = "Total Enrollment Between 1990 - 2015",
+       subtitle = "Year: {frame_along}",
+       caption = "This visual displays the enrollment numbers for Males, Females, 4-year schools, 2-year schools and total enrollment
+       Source: https://data.world/nces/hbcu-fall-enrollment-1976-2015",
+       x = "",
+       y = "",
+       color = "Category") +
+  scale_color_mncol(palette = "heat") +
+  scale_y_continuous(breaks = seq(0, 350000, by = 25000)) +
+  dark_mode(theme_mmb_basic(legend.position = "none",
+                            plot.title.position = "plot",
+                            axis.title.x = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.ticks.x = element_blank(),
+                            axis.title.y = element_text(size = 12),
+                            panel.grid.major.y = element_line()
+                            )
+            ) +
+  transition_reveal(Year)
+
+animate(anim_enroll, 
+        #nframes = 200,
+        fps = 5,
+        width = 800, 
+        height = 600)
+
+#anim_save("Total enrollment.gif")
+```
+
+```{r four year}
+# public vs. private enrollment for 4-year
+anim_four <- fourYear %>%
+  ggplot(aes(x = Year,
+             y = Value,
+             color = Category)) +
+  geom_line() +
+  geom_text(aes(label = Category)) +
+  labs(title = "Enrollment for 4-year Schools Between 1990 - 2015",
+       subtitle = "Year: {frame_along}",
+       caption = "This visual displays the enrollment numbers for public and private 4-year schools
+       Source: https://data.world/nces/hbcu-fall-enrollment-1976-2015",
+       x = "",
+       y = "",
+       color = "Category") +
+  scale_color_manual(values = c("#78BE21", "#008EAA", "#A4BCC2", "#FFC845")) +
+  scale_y_continuous(breaks = seq(0, 250000, by = 25000)) +
+  dark_mode(theme_mmb_basic(legend.position = "none",
+                            plot.title.position = "plot",
+                            axis.title.x = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.ticks.x = element_blank(),
+                            axis.title.y = element_text(size = 12),
+                            panel.grid.major.y = element_line()
+                            )
+            ) +
+  transition_reveal(Year)
+
+animate(anim_four, 
+        #nframes = 200,
+        fps = 5,
+        width = 800, 
+        height = 600)
+
+#anim_save("4-year enrollment.gif")
+```
+
+```{r two year}
+# public vs. private enrollment for 2-year
+anim_two <- twoYear %>%
+  ggplot(aes(x = Year,
+             y = Value,
+             color = Category)) +
+  geom_line() +
+  geom_text(aes(label = Category)) +
+  labs(title = "Enrollment for 2-year Schools Between 1990 - 2015",
+       subtitle = "Year: {frame_along}",
+       caption = "This visual displays the enrollment numbers for public and private 2-year schools
+       Source: https://data.world/nces/hbcu-fall-enrollment-1976-2015",
+       x = "",
+       y = "",
+       color = "Category") +
+  scale_color_manual(values = c("#78BE21", "#008EAA", "#A4BCC2", "#FFC845")) +
+  scale_y_continuous(breaks = seq(1000, 326000, by = 25000)) +
+  dark_mode(theme_mmb_basic(legend.position = "none",
+                            plot.title.position = "plot",
+                            axis.title.x = element_blank(),
+                            axis.text.x = element_blank(),
+                            axis.ticks.x = element_blank(),
+                            axis.title.y = element_text(size = 12),
+                            panel.grid.major.y = element_line()
+                            )
+            ) +
+  transition_reveal(Year)
+
+animate(anim_two, 
+        #nframes = 200,
+        fps = 5,
+        width = 800, 
+        height = 600)
+
+#anim_save("2-year enrollment.gif")
+```
+
