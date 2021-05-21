@@ -1,0 +1,253 @@
+---
+title: "Tableau User Group - BLS Economic Data"
+author: "Katie Kotasek"
+date: "5/03/2021"
+output: html_document
+---
+I created the following plots:
+
+  + Example 1: Animated GIF with the ```gganimate``` package
+  + Example 2: Interactive graph with the ```ggiraph``` package
+  + Example 3: Sankey diagram with the ```networkD3``` package
+
+```{r setup, include=FALSE}
+# required packages
+library(tidyverse)
+library(mmbtools)
+library(gganimate)  # animation package
+library(ggdark)  # dark theme package
+library(ggiraph) # interactive chart package
+library(htmlwidgets)  # save HTML object
+library(networkD3)  # sankey diagrams
+library(htmltools)
+
+mmb_load_fonts()
+
+options(scipen = 999)
+```
+
+```{r read data, include=FALSE}
+# Employed persons by industry, sex, race, and occupation
+#employed <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-23/employed.csv')
+# Weekly median earnings and number of persons employed by race/gender/age group over time
+earn <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-23/earn.csv')
+```
+
+```{r filter set}
+# filter data
+earnFiltered <- earn %>%
+  filter(age %in% c("16 to 19 years", "20 to 24 years", "25 to 34 years",
+                    "35 to 44 years", "45 to 54 years", "55 to 64 years",
+                    "65 years and over") &
+         sex == "Both Sexes")
+```
+
+```{r counts, include=FALSE}
+countSex <- earnFiltered %>%
+  distinct(sex) %>%
+  count()
+countRace <- earnFiltered %>%
+  distinct(race) %>%
+  count()
+countEthnicity <- earnFiltered %>%
+  distinct(ethnic_origin) %>%
+  count()
+countAge <- earnFiltered %>%
+  distinct(age) %>%
+  count()
+countYear <- earnFiltered %>%
+  distinct(year) %>%
+  count()
+```
+
+```{r example1 static}
+# create static bubble plot
+bubble <- earnFiltered %>%
+  ggplot(aes(x=n_persons, y=median_weekly_earn, size = median_weekly_earn, color = age)) +
+    geom_point(alpha=0.8) +
+    scale_color_manual("Age Group Legend:", values = c("#003685", "#78BE21", "#008EAA", "#A4BCC2", "#FFC845",
+                                "#F5E1A4", "#A6192E")) +
+    scale_y_continuous(limits = c(0, 1250)) +
+    scale_size(range = c(.1, 12), name="Median Weekly Earnings") +
+    labs(title = "Bubble Plot of Median Weekly Earnings",  # add plot title
+         subtitle = "Years 2010 - 2020; All  Four Quarters",
+         caption = "Source: https://www.bls.gov/cps/tables.htm#charemp_m",
+       x = "Number of Persons",  # add x-axis title
+       y = "Median Weekly Earnings") +
+    dark_mode(theme_mmb_basic(plot.title = element_text(size = 14),
+                    plot.title.position = "plot",
+                    legend.position = "right",
+                    legend.title = element_text(size = 10),
+                    legend.text = element_text(size = 8),
+                    axis.ticks.x = element_line(),
+                    axis.text.x = element_text(size = 10),
+                    axis.text.y = element_text(size = 10),
+                    axis.title.y = element_text(size = 10),
+                    axis.title.x = element_text(size = 10),
+                    plot.caption = element_text(size = 10, face = "italic"),
+                    plot.subtitle = element_text(size = 12),
+                    panel.grid.major.y = element_line()))
+# save as PNG
+#ggsave("Example 1 - Static.png", plot = bubble, path = here::here("code/MMB TUG"), width = 250, height = 100, units = "mm")
+```
+
+```{r example1 animated}
+# create animation
+anim_earn <- earnFiltered %>%
+  filter(quarter == 1) %>%
+  ggplot(aes(x = n_persons, y=median_weekly_earn, size = median_weekly_earn, color = age)) +
+  geom_point() +
+  scale_color_manual("Age Group Color:", values = c("#003685", "#78BE21", "#008EAA", "#A4BCC2", "#FFC845",
+                                "#F5E1A4", "#A6192E")) +  # set color scheme for the bubbles
+  scale_y_continuous(limits = c(0, 1250)) +
+  scale_size(range = c(1, 12), name="Median Weekly Earnings") +
+  labs(title = "Bubble Plot of Quarter 1 Median Weekly Earnings",
+       subtitle = "Year: {next_state}",  # add plot subtitle that changes with each state change
+       caption = "Source: https://www.bls.gov/cps/tables.htm#charemp_m",
+       x = "Number of Persons",  # add x-axis title
+       y = "Weekly Earnings") +  # add y-axis title
+  dark_mode(theme_mmb_basic(plot.title = element_text(size = 18),
+                    plot.title.position = "plot",
+                    legend.position = "right",
+                    legend.title = element_text(size = 14),
+                    legend.text = element_text(size = 14),
+                    axis.ticks.x = element_line(),
+                    axis.text.x = element_text(size = 14),
+                    axis.text.y = element_text(size = 14),
+                    axis.title.y = element_text(size = 14),
+                    axis.title.x = element_text(size = 14),
+                    plot.caption = element_text(size = 12, face = "italic"),
+                    panel.grid.major.y = element_line())) + 
+  transition_states(states = year)
+# animate bubble chart
+animate(anim_earn,
+        width = 750, 
+        height = 450)
+
+# save animation as a GIF
+#anim_save("code/MMB TUG/Example 1 - Animated.gif")
+```
+
+```{r example2 static}
+# create static scatter plot
+scatter <- earnFiltered %>%
+  ggplot(aes(x=n_persons, y=median_weekly_earn, color = age)) +
+    # add interactivity
+    geom_point() +
+    # set colors so they show up better
+    scale_color_manual("Age Group Legend:", values = c("#003685", "#78BE21", "#008EAA", "#A4BCC2", "#FFC845",
+                                "#F5E1A4", "#A6192E")) +
+    scale_y_continuous(limits = c(0, 1250)) +
+    # make the whole plot dark
+    dark_mode(theme_mmb_basic(plot.title = element_text(size = 14),
+                    plot.title.position = "plot",
+                    legend.position = "right",
+                    legend.title = element_text(size = 10),
+                    legend.text = element_text(size = 8),
+                    axis.ticks.x = element_line(),
+                    axis.text.x = element_text(size = 10),
+                    axis.text.y = element_text(size = 10),
+                    axis.title.y = element_text(size = 10),
+                    axis.title.x = element_text(size = 10),
+                    plot.caption = element_text(size = 10, face = "italic"),
+                    plot.subtitle = element_text(size = 12),
+                    panel.grid.major.y = element_line())) +
+    labs(title = "Scatter Plot of Median Weekly Earnings",
+         subtitle = "Years 2010 - 2020; All  Four Quarters",
+         caption = "Source: https://www.bls.gov/cps/tables.htm#charemp_m",
+       x = "Number of Persons",
+       y = "Median Weekly Earnings")
+
+# save as PNG
+#ggsave("Example 2 - Static.png", plot = scatter, path = here::here("code/MMB TUG"), width = 250, height = 100, units = "mm")
+```
+
+```{r example2 interactive}
+earnFormat <- earnFiltered %>%
+  mutate(earnFormat = format(median_weekly_earn, digits = 0,nsmall = 0, big.mark = ","),
+         Earn = paste0("Year: ", year, sep = "; ", "Median Value: ", earnFormat))
+
+# customize tooltip that displays
+tooltip_css <- "font-family:calibri;font-style:italic;padding:5px;"
+
+# create interactive graph
+interact <- earnFormat %>%
+  filter(quarter == 1) %>%
+  ggplot(aes(x=n_persons, y=median_weekly_earn, color = age)) +
+    # add interactivity
+    geom_point_interactive(aes(tooltip = Earn, data_id = Earn)) +
+    # set colors so they show up better
+    scale_color_manual("Age Group Legend:", values = c("#003685", "#78BE21", "#008EAA", "#A4BCC2", "#FFC845",
+                                "#F5E1A4", "#A6192E")) +
+    scale_y_continuous(limits = c(0, 1250)) +
+    # make the whole plot dark
+    dark_mode(theme_mmb_basic(plot.title = element_text(size = 12),
+                    plot.title.position = "plot",
+                    legend.position = "right",
+                    legend.title = element_text(size = 8),
+                    legend.text = element_text(size = 8),
+                    axis.ticks.x = element_line(),
+                    axis.text.x = element_text(size = 8),
+                    axis.text.y = element_text(size = 8),
+                    axis.title.y = element_text(size = 8),
+                    axis.title.x = element_text(size = 8),
+                    plot.caption = element_text(size = 8, face = "italic"),
+                    plot.subtitle = element_text(size = 8),
+                    panel.grid.major.y = element_line())) +
+    labs(title = "Scatter Plot of Quarter 1 Median Weekly Earnings",
+         subtitle = "Years 2010 - 2020",
+         caption = "Source: https://www.bls.gov/cps/tables.htm#charemp_m",
+       x = "Number of Persons",
+       y = "Median Weekly Earnings")
+
+# display interactive plot
+obj <- girafe(ggobj = interact, width_svg=7, height_svg=3,
+              options = list(opts_sizing(width = 0.9),
+                             # change tooltip offset when it pops up and set the 'css' option which is defined earlier
+                             opts_tooltip(offx = 20, offy = 20, css = tooltip_css, 
+                                          # use the assigned color in the tooltip
+                                          use_fill = TRUE),
+                             # change size of "selected" point on mouse hover
+                             opts_hover(css = "r:6px;stroke:white;stroke-width:1px;"),
+                             # change opacity of "non-selected" points on mouse hover
+                             opts_hover_inv(css = "opacity:0.1;"))
+      )
+
+# save as HTML object
+#saveWidget(obj, title = "Example 2 - Interactive", file = here::here("code/MMB TUG/Example 2 - Interactive.html"),  knitrOptions=list())
+```
+
+```{r example3 sankey}
+# filter data
+earn2010 <- earn %>%
+  filter(year == 2010 & quarter == 1 & age %in% c("16 years and over", "16 to 24 years", "25 years and over",
+                                   "65 years and over", "25 to 34 years", "35 to 44 years",
+                                   "45 to 54 years", "55 to 64 years") &
+         sex == "Both Sexes" & race == "All Races" & ethnic_origin == "All Origins")
+# manually create links
+links <- data.frame(
+  source=c("Grand total","Grand total", "Grand total",
+           "Years: 25 and over", "Years: 25 and over", "Years: 25 and over", "Years: 25 and over"), 
+  target=c("16 to 24 years","Years: 25 and over", "65 years and over",
+           "25 to 34 years", "35 to 44 years", "45 to 54 years", "55 to 64 years"), 
+  value=c(7767000, 89054000, 2541000, 23424000, 23338000, 24991000, 14760000)
+  )
+# create nodes
+nodes <- data.frame(
+  name=c(as.character(links$source), 
+  as.character(links$target)) %>% unique()
+)
+# reformat links
+links$IDsource <- match(links$source, nodes$name)-1 
+links$IDtarget <- match(links$target, nodes$name)-1
+
+# create custom color scale
+my_colors <- 'd3.scaleOrdinal() .domain(["All Attendees"]) .range(["#003685", "#78BE21", "#008EAA", "#FFC845",
+"#5D295F", "#A6192E", "#53565A", "#B75B00"])'
+
+# create sankey diagram
+sankeyNetwork(Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+              Value = "value", NodeID = "name", sinksRight=FALSE, fontSize = 14, fontFamily = "Calibri",
+              height = 600, width = 1000, nodeWidth = 20, colourScale = my_colors)
+```
+
