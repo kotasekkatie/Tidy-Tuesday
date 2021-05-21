@@ -1,0 +1,215 @@
+---
+title: "Tidy Tuesday - Wealth Inequality"
+author: "Katie Kotasek"
+date: "2/10/2021"
+output: html_document
+---
+This week, for Tidy Tuesday, I wanted to focus on one type of charting: Distribution charts. Therefore, I created different distribution charts for the following data sets:
+
+1. *Violin* chart for the data set - student_debt
+2. *Density* chart for the data set - retirement
+3. *Histogram* chart for the data set - home_owner
+4. *Boxplot* chart for the data set - race_wealth
+5. *Ridgeline* chart for the data set - income_mean
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# required packages
+library(ggridges)
+library(ggdark)
+library(tidyverse)
+library(mmbtools)
+library(plyr)
+
+mmb_load_fonts()
+
+options(scipen = 999)
+```
+
+```{r}
+# data sets
+# Average family student loan debt for aged 25-55, by race and year normalized to 2016 dollars
+student_debt <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/student_debt.csv')
+# Average family liquid retirement savings normalized to 2016 dollars.
+retirement <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/retirement.csv')
+# Home ownership percentage for families
+home_owner <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/home_owner.csv')
+# Family wealth by race/year/measure normalized to 2016, with measures of central tendency with mean and median.
+race_wealth <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/race_wealth.csv')
+# Family-level income by percentile and year.
+income_time <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/income_time.csv')
+# Mean income received by each fifth and top 5% of each racial group.
+income_mean <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-02-09/income_mean.csv')
+```
+
+```{r student loan debt}
+# CLEAN UP STUDENT_DEBT DATA
+student_debt <- student_debt %>%
+  mutate(loan_pct = round((loan_debt_pct * 100), 2)) %>%
+  select(year, race, loan_pct)
+
+# VIOLIN PLOT
+student_debt %>%
+  ggplot(aes(x = race, y = loan_pct, fill = race)) +
+    geom_violin() +
+    scale_fill_manual(values = c("#003685", "#78BE21", "#008EAA")) +
+    theme_mmb_basic(legend.position = "none",
+                    plot.title.position = "plot",
+                    axis.title.y = element_text(size = 12),
+                    panel.grid.major.y = element_line(),
+                    plot.caption = element_text(face = "italic", size = 12)
+                    ) +
+    labs(title = "Distribution of student loan debt percentage by race",
+         subtitle = "Years 1989 - 2016",
+         caption = "Source: https://apps.urban.org/features/wealth-inequality-charts",
+         x = "",
+         y = "Loan Debt (%)")
+```
+
+```{r retirement}
+mu <- ddply(retirement, "race", summarise, grp.mean=mean(retirement))
+# DENSITY PLOT
+retirement %>%
+  ggplot(aes(x = retirement, fill = race)) +
+    geom_density() +
+    geom_vline(data = mu, aes(xintercept=grp.mean), linetype="dashed") +
+    facet_grid(race ~ .) +
+    scale_fill_manual(values = c("#003685", "#78BE21", "#008EAA")) +
+    theme_mmb_basic(legend.position = "none",
+                    plot.title.position = "plot",
+                    axis.title.y = element_text(size = 12),
+                    panel.grid.major.y = element_line(),
+                    plot.caption = element_text(face = "italic", size = 12)
+                    ) +
+    labs(title = "Distribution of average retirement savings by race",
+         subtitle = "Years 1989 - 2016",
+         caption = "Source: https://apps.urban.org/features/wealth-inequality-charts",
+         x = "Amount in retirement savings ($)",
+         y = "Density")
+```
+
+```{r home owner}
+# CLEAN UP HOME_OWNER DATA
+home_owner <- home_owner %>%
+  mutate(home_pct = round((home_owner_pct * 100), 2)) %>%
+  select(year, race, home_pct)
+
+# HISTOGRAM PLOT
+home_owner %>%
+  ggplot(aes(x = home_pct, fill = race)) +
+    geom_histogram(alpha = 0.9, color = "black") +
+    facet_grid(race ~ .) +
+    scale_fill_manual(values = c("#003685", "#78BE21", "#008EAA")) +
+    theme_mmb_basic(legend.position = "none",
+                    plot.title.position = "plot",
+                    axis.title.y = element_text(size = 12),
+                    panel.grid.major.y = element_line(),
+                    plot.caption = element_text(face = "italic", size = 12)
+                    ) +
+    labs(title = "Distribution of home owners percentage by race",
+         subtitle = "Years 1976 - 2016",
+         caption = "Source: https://apps.urban.org/features/wealth-inequality-charts",
+         x = "Percent home owner (%)",
+         y = "Count")
+```
+
+```{r race wealth}
+# CLEAN UP RACE_WEALTH DATA
+rw_avg <- race_wealth %>%
+  filter(type == "Average") %>%
+  #mutate_at(vars(wealth_family), replace_na, 0) %>%
+  select(year, race, wealth_family)
+rw_med <- race_wealth %>%
+  filter(type == "Median") %>%
+  #mutate_at(vars(wealth_family), replace_na, 0) %>%
+  select(year, race, wealth_family)
+
+# BOX PLOT - AVERAGE
+rw_avg %>%
+  ggplot(aes(x = race, y = wealth_family, fill = race)) +
+    geom_boxplot(alpha = 0.8) +
+    scale_fill_manual(values = c("#003685", "#78BE21", "#FFC845", "#008EAA")) +
+    #geom_jitter(color="black", size=0.4, alpha=0.9) +
+    theme_mmb_basic(legend.position = "none",
+                    plot.title.position = "plot",
+                    axis.title.y = element_text(size = 12),
+                    panel.grid.major.y = element_line(),
+                    plot.caption = element_text(face = "italic", size = 12)
+                    ) +
+    labs(title = "Distribution of average family wealth by race",
+         subtitle = "Years 1963 - 2016",
+         caption = "Source: https://apps.urban.org/features/wealth-inequality-charts",
+         x = "",
+         y = "Average wealth ($)")
+# BOX PLOT - MEDIAN
+rw_med %>%
+  ggplot(aes(x = race, y = wealth_family, fill = race)) +
+    geom_boxplot(alpha = 0.8) +
+    scale_fill_manual(values = c("#003685", "#78BE21", "#FFC845", "#008EAA")) +
+    #geom_jitter(color="black", size=0.4) +
+    theme_mmb_basic(legend.position = "none",
+                    plot.title.position = "plot",
+                    axis.title.y = element_text(size = 12),
+                    panel.grid.major.y = element_line(),
+                    plot.caption = element_text(face = "italic", size = 12)
+                    ) +
+    labs(title = "Distribution of median family wealth by race",
+         subtitle = "Years 1963 - 2016",
+         caption = "Source: https://apps.urban.org/features/wealth-inequality-charts",
+         x = "",
+         y = "Median wealth ($)")
+```
+
+```{r income time, eval=FALSE, echo=FALSE}
+income_time %>%
+  ggplot(aes(x = income_family, y = percentile, fill = income_family)) +
+    geom_density_ridges() +
+    #scale_fill_viridis(name = "income_family", option = "C") +
+    theme_mmb_basic(legend.position = "none",
+                    plot.title.position = "plot",
+                    axis.title.y = element_text(size = 12),
+                    panel.grid.major.y = element_line(),
+                    plot.caption = element_text(face = "italic", size = 12)
+                    ) +
+    labs(title = "Income by percentile",
+         subtitle = "Years 1963 - 2016",
+         caption = "Source: https://apps.urban.org/features/wealth-inequality-charts",
+         x = "Income ($)",
+         y = "Percentile")
+```
+
+```{r income mean}
+# CLEAN UP INCOME_MEAN DATA
+income_mean <- income_mean %>%
+  mutate(race = case_when(race == "All Races" ~ "All",
+                          race == "Asian Alone or in Combination" ~ "Asian",
+                          race == "Asian Alone" ~ "Asian",
+                          race == "Black Alone or in Combination" ~ "Black",
+                          race == "Black Alone" ~ "Black",
+                          race == "Hispanic" ~ "Hispanic",
+                          race == "White Alone" ~ "White",
+                          race == "White, Not Hispanic" ~ "White (NH)")
+         )
+income_curr <- income_mean %>%
+  filter(dollar_type == "Current Dollars" & race != "All") %>%
+  select(year, race, income_quintile, income_dollars)
+
+# RIDGELINE PLOT
+income_curr %>%
+  ggplot(aes(x = income_dollars, y = income_quintile, fill = race)) +
+    geom_density_ridges() +
+    facet_grid(race ~ .) +
+    scale_fill_manual(values = c("#5D295F", "#003685", "#78BE21", "#008EAA", "#FFC845")) +
+    theme_mmb_basic(legend.position = "none",
+                    plot.title.position = "plot",
+                    axis.title.y = element_text(size = 12),
+                    panel.grid.major.y = element_line(),
+                    plot.caption = element_text(face = "italic", size = 12)
+                    ) +
+    labs(title = "Distribution of income by race (current dollars)",
+         subtitle = "Years 1967 - 2019",
+         caption = "Source: https://apps.urban.org/features/wealth-inequality-charts",
+         x = "Income ($)",
+         y = "")
+```
