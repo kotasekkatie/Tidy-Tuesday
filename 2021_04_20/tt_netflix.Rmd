@@ -1,0 +1,43 @@
+---
+title: "Tidy Tuesday - Netflix Titles"
+author: "Katie Kotasek"
+date: "4/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# required packages
+library(tidyverse)
+library(mmbtools)
+library(readxl)
+library(openxlsx)
+library(lubridate)
+
+mmb_load_fonts()
+
+options(scipen = 999)
+```
+
+```{r read data}
+netflix <- read_xlsx("code/Week of 04-20/netflix_titles.xlsx", col_types = c("text", "text", "text",
+                                                                             "date", "text", "text",
+                                                                             "text", "text"))
+
+
+
+
+netflix <- netflix %>%
+  separate(col = country, into = c("country1", "country2"), sep = "\\,")
+
+netflix <- netflix %>%
+  separate(col = listed_in, into= c("genre1", "genre2"), sep = "\\,")
+
+netflix <- netflix %>%
+  select(-c(country2, genre2)) %>%
+  mutate(date_added = as.Date(date_added))
+```
+
+```{r}
+write.xlsx(netflix, "code/Week of 04-20/data.xlsx")
+```
+
